@@ -1,252 +1,128 @@
-<!doctype html>
-
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>블럭블라스트</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoMedia Project - 영상으로 환경을 말하다</title>
 <style>
-  :root{--bg:#071427;--panel:#0b1220;--muted:#9aa7b8;--accent:#06b6d4}
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans KR',sans-serif;background:linear-gradient(180deg,#061025,#071427);color:#e6eef6}
-  .wrap{max-width:980px;margin:18px auto;padding:16px}
-  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
-  h1{font-size:20px;margin:0}
-  .controls{display:flex;gap:8px;align-items:center}
-  button{background:var(--accent);border:none;color:#012;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer}
-  button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
-  .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:12px;margin-top:12px;box-shadow:0 10px 30px rgba(2,6,23,0.6)}/* game area / .board-wrap{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap} .board{ width: min(88vw, 520px); aspect-ratio: 1/1; / square */ display:grid; background:#071a2b; padding:6px; border-radius:10px; box-shadow: inset 0 6px 18px rgba(0,0,0,0.6); touch-action: manipulation; }
-
-.cell{ border-radius:6px; margin:4px; display:flex;align-items:center;justify-content:center; font-weight:700;color:#042;cursor:pointer;user-select:none;transition:transform .12s ease, opacity .18s ease;touch-action: manipulation; } .cell:active{transform:scale(.98)}
-
-.c-0{background:#f97316;color:#fff} /* orange / .c-1{background:#fb7185;color:#fff} / pink / .c-2{background:#34d399;color:#012} / green / .c-3{background:#60a5fa;color:#012} / blue / .c-4{background:#facc15;color:#012} / yellow */
-
-.cell.removed{opacity:0;transform:scale(.6)} .cell.shake{animation: shake .35s} @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-4px)}100%{transform:translateX(0)}}
-
-.sidebar{flex:1;min-width:220px} .stat{display:flex;gap:8px;align-items:center;margin-bottom:8px} .pill{background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:999px;font-size:14px;color:var(--muted)}
-
-.hint{margin-top:8px;color:var(--muted);font-size:13px} .big{font-size:28px;font-weight:800;color:var(--accent)} footer{margin-top:14px;color:var(--muted);font-size:13px;text-align:center}
-
-@media(min-width:900px){.wrap{padding:24px}h1{font-size:22px}} </style>
-
+  *{margin:0; padding:0; box-sizing:border-box;}
+  body{font-family:'Noto Sans KR', sans-serif; background:#f5f8f7; color:#222;}
+  header{height:100vh; background:url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1400&q=80') center/cover; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#fff;}
+  header h1{font-size:3rem; background:rgba(0,0,0,0.5); padding:1rem 2rem; border-radius:1rem;}
+  header p{margin-top:1rem; font-size:1.2rem;}
+  section{padding:80px 10%; line-height:1.7;}
+  h2{font-size:2rem; margin-bottom:1rem; color:#2d6a4f;}
+  .idea-cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:1.5rem;}
+  .card{background:#fff; padding:1rem; border-radius:1rem; box-shadow:0 2px 10px rgba(0,0,0,0.1);}
+  .upload-area{border:2px dashed #2d6a4f; padding:2rem; text-align:center; border-radius:1rem; margin-top:1rem;}
+  .preview img{max-width:100%; border-radius:0.5rem; margin-top:1rem;}
+  .storyboard{margin-top:2rem;}
+  button{background:#2d6a4f; color:#fff; border:none; padding:0.7rem 1.2rem; border-radius:0.5rem; cursor:pointer;}
+  button:hover{background:#40916c;}
+  footer{text-align:center; padding:2rem; background:#2d6a4f; color:#fff;}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>블럭블라스트</h1>
-      <div class="controls">
-        <button id="restart">새 게임</button>
-        <button id="undo" class="secondary" disabled>실행 취소</button>
-        <select id="sizeSel" class="secondary">
-          <option value="10">10 x 10 (기본)</option>
-          <option value="12">12 x 12 (중급)</option>
-          <option value="8">8 x 8 (쉬움)</option>
-        </select>
-      </div>
-    </header><div class="panel">
-  <div class="board-wrap">
-    <div id="board" class="board" aria-label="게임판"></div>
-    <div class="sidebar">
-      <div class="stat"><div class="pill">점수</div><div class="big" id="score">0</div></div>
-      <div class="stat"><div class="pill">남은 색 블럭</div><div id="remain" class="pill">-</div></div>
-      <div class="hint" id="hint">힌트: 같은 색 블럭 2개 이상을 클릭하면 삭제됩니다.</div>
-      <div style="margin-top:12px"></div>
-      <div class="hint">모바일에서 터치로 플레이하세요. 길게 누르지 않아도 됩니다.</div>
+
+<header>
+  <h1>EcoMedia Project</h1>
+  <p>영상과 이야기로 환경의 변화를 기록하고, 행동으로 이어가다.</p>
+</header>
+
+<section id="problem">
+  <h2>1) 문제의식</h2>
+  <p>기후위기와 생태계 붕괴는 단순한 과학 문제가 아니라, 우리가 ‘무관심’해온 시간의 결과입니다. 영상과 미디어는 감정을 자극하고 공감을 이끌어내는 힘이 있습니다. 이 프로젝트는 환경 문제를 시각적 이야기로 풀어내, 시민의 참여와 행동을 촉진하고자 합니다.</p>
+</section>
+
+<section id="idea">
+  <h2>2) 핵심 아이디어</h2>
+  <div class="idea-cards">
+    <div class="card">
+      <h3>에코미디어 캠페인</h3>
+      <p>누구나 자신의 영상, 이미지, 목소리로 환경의 변화를 공유할 수 있는 플랫폼을 구축합니다.</p>
+    </div>
+    <div class="card">
+      <h3>참여형 영상 스토리</h3>
+      <p>사용자 스토리를 짧은 다큐·카드뉴스로 재구성하여 감정적 공감과 행동 변화를 유도합니다.</p>
+    </div>
+    <div class="card">
+      <h3>미디어 기술의 활용</h3>
+      <p>영상 편집, 시각 연출, 인터랙티브 콘텐츠 등 전공 지식을 통해 환경 문제를 창의적으로 표현합니다.</p>
     </div>
   </div>
-</div>
+</section>
 
-<footer>블럭을 많이 지울수록 더 높은 점수를 얻습니다. 질문 있으면 말해줘!</footer>
+<section id="webapp">
+  <h2>3) 웹페이지 구현</h2>
+  <p>직접 환경 스토리를 올리고, 장면을 구성해 영상으로 발전시킬 수 있습니다.</p>
 
-  </div><script>
-(function(){
-  // 기본 변수
-  let SIZE = 10; // grid size
-  const COLORS = 5;
-  let grid = []; // 2D array of color indices or null
-  let score = 0;
-  let boardEl = document.getElementById('board');
-  let scoreEl = document.getElementById('score');
-  let remainEl = document.getElementById('remain');
-  let hintEl = document.getElementById('hint');
-  let undoBtn = document.getElementById('undo');
-  let restartBtn = document.getElementById('restart');
-  let sizeSel = document.getElementById('sizeSel');
+  <div class="upload-area">
+    <p><strong>당신의 환경 이야기</strong>를 업로드하세요.</p>
+    <input type="file" id="mediaUpload" accept="image/*,video/*">
+    <div class="preview" id="preview"></div>
+  </div>
 
-  let prevState = null; // for undo
+  <div class="storyboard">
+    <h3>스토리보드 구성</h3>
+    <input type="text" id="sceneInput" placeholder="장면 내용을 입력하세요">
+    <button id="addScene">추가</button>
+    <ul id="sceneList"></ul>
+  </div>
+</section>
 
-  function randomGrid(){
-    grid = Array.from({length:SIZE}, ()=> Array.from({length:SIZE}, ()=> Math.floor(Math.random()*COLORS)) );
-    score = 0;
-    prevState = null;
-    updateUI();
-  }
+<section id="reflection">
+  <h2>4) 성찰</h2>
+  <p>이번 프로젝트를 통해 영상·미디어 전공이 단순한 표현 수단이 아니라, 환경 행동을 촉진하고 사회적 감수성을 확장하는 언어가 될 수 있음을 배웠습니다. 영상은 기록을 넘어 행동을 부르는 힘이 있습니다.</p>
+</section>
 
-  function render(){
-    boardEl.style.gridTemplateColumns = `repeat(${SIZE}, 1fr)`;
-    boardEl.innerHTML = '';
-    for(let r=0;r<SIZE;r++){
-      for(let c=0;c<SIZE;c++){
-        const val = grid[r][c];
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.style.flex = '1 1 0';
-        cell.style.minWidth = '0';
-        cell.dataset.r = r; cell.dataset.c = c;
-        cell.style.height = `calc((100% - ${ (SIZE+1)*8 }px) / ${SIZE})`;
-        if(val === null){ cell.style.visibility = 'hidden'; }
-        else { cell.classList.add('c-'+val); cell.textContent = ''; }
+<footer>
+  © 2025 EcoMedia Project | “작은 영상이 지구를 바꾼다”
+</footer>
 
-        cell.addEventListener('click', onCellClick);
-        boardEl.appendChild(cell);
-      }
+<script>
+  // 미디어 업로드 미리보기
+  const upload = document.getElementById('mediaUpload');
+  const preview = document.getElementById('preview');
+  upload.addEventListener('change', () => {
+    const file = upload.files[0];
+    preview.innerHTML = '';
+    if(!file) return;
+    if(file.type.startsWith('image/')){
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      preview.appendChild(img);
+    } else if(file.type.startsWith('video/')){
+      const video = document.createElement('video');
+      video.src = URL.createObjectURL(file);
+      video.controls = true;
+      video.style.maxWidth = '100%';
+      preview.appendChild(video);
     }
-  }
-
-  function onCellClick(e){
-    if(!e.currentTarget) return;
-    const r = Number(e.currentTarget.dataset.r);
-    const c = Number(e.currentTarget.dataset.c);
-    if(grid[r][c] === null) return;
-
-    const group = floodFill(r,c, grid[r][c]);
-    if(group.length < 2){
-      // shake effect for small groups
-      e.currentTarget.classList.add('shake');
-      setTimeout(()=> e.currentTarget.classList.remove('shake'), 350);
-      return;
-    }
-
-    // save for undo
-    prevState = { grid: cloneGrid(grid), score };
-    undoBtn.disabled = false;
-
-    // remove group
-    group.forEach(([rr,cc])=> grid[rr][cc] = null);
-
-    // scoring: (n-1)^2
-    const n = group.length;
-    score += (n-1)*(n-1);
-
-    collapse();
-    shiftLeft();
-    updateUI();
-
-    setTimeout(()=>{
-      if(!hasMoves()){
-        const remaining = countRemaining();
-        let msg = remaining ===0 ? '모든 블럭 제거 — 퍼펙트!' : '더 이상 이동 없음.';
-        hintEl.textContent = msg + ' 새 게임을 하거나 사이즈를 변경하세요.';
-      }
-    },150);
-  }
-
-  function floodFill(sr, sc, color){
-    const visited = Array.from({length:SIZE}, ()=> Array(SIZE).fill(false));
-    const stack = [[sr,sc]];
-    const group = [];
-    while(stack.length){
-      const [r,c] = stack.pop();
-      if(r<0||r>=SIZE||c<0||c>=SIZE) continue;
-      if(visited[r][c]) continue;
-      visited[r][c] = true;
-      if(grid[r][c] !== color) continue;
-      group.push([r,c]);
-      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dr,dc])=> stack.push([r+dr,c+dc]));
-    }
-    return group;
-  }
-
-  function collapse(){
-    // for each column, drop non-null down
-    for(let c=0;c<SIZE;c++){
-      let write = SIZE-1;
-      for(let r=SIZE-1;r>=0;r--){
-        if(grid[r][c] !== null){ grid[write][c] = grid[r][c]; write--; }
-      }
-      for(let r=write;r>=0;r--) grid[r][c] = null;
-    }
-  }
-
-  function shiftLeft(){
-    // move non-empty columns to the left
-    let write = 0;
-    for(let c=0;c<SIZE;c++){
-      if(columnEmpty(c)) continue;
-      if(write !== c){
-        for(let r=0;r<SIZE;r++){ grid[r][write] = grid[r][c]; grid[r][c] = null; }
-      }
-      write++;
-    }
-  }
-
-  function columnEmpty(c){
-    for(let r=0;r<SIZE;r++) if(grid[r][c] !== null) return false;
-    return true;
-  }
-
-  function hasMoves(){
-    for(let r=0;r<SIZE;r++){
-      for(let c=0;c<SIZE;c++){
-        if(grid[r][c]===null) continue;
-        const group = floodFill(r,c,grid[r][c]);
-        if(group.length >=2) return true;
-      }
-    }
-    return false;
-  }
-
-  function countRemaining(){
-    let cnt = 0; for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) if(grid[r][c]!==null) cnt++; return cnt;
-  }
-
-  function updateUI(){
-    render();
-    scoreEl.textContent = score;
-    remainEl.textContent = countRemaining();
-    hintEl.textContent = hasMoves() ? '이동 가능: 같은 색 블럭 2개 이상을 찾으세요.' : '이동 없음 — 새 게임을 시작하세요.';
-  }
-
-  function cloneGrid(g){ return g.map(row=> row.slice()); }
-
-  // undo
-  undoBtn.addEventListener('click', ()=>{
-    if(!prevState) return;
-    grid = cloneGrid(prevState.grid);
-    score = prevState.score;
-    prevState = null;
-    undoBtn.disabled = true;
-    updateUI();
   });
 
-  restartBtn.addEventListener('click', ()=>{
-    init(parseInt(sizeSel.value,10));
-  });
+  // 스토리보드 추가 및 저장
+  const sceneInput = document.getElementById('sceneInput');
+  const addScene = document.getElementById('addScene');
+  const sceneList = document.getElementById('sceneList');
+  let scenes = JSON.parse(localStorage.getItem('scenes')) || [];
 
-  sizeSel.addEventListener('change', ()=>{
-    init(parseInt(sizeSel.value,10));
-  });
-
-  function init(size){
-    SIZE = size || SIZE;
-    // create grid with random but ensure some moves exist (simple retry)
-    do{
-      grid = Array.from({length:SIZE}, ()=> Array.from({length:SIZE}, ()=> Math.floor(Math.random()*COLORS)) );
-    } while(!anyInitialMoves());
-    score = 0; prevState = null; undoBtn.disabled = true; updateUI();
+  function renderScenes(){
+    sceneList.innerHTML = '';
+    scenes.forEach((scene, i) => {
+      const li = document.createElement('li');
+      li.textContent = `${i+1}. ${scene}`;
+      sceneList.appendChild(li);
+    });
+    localStorage.setItem('scenes', JSON.stringify(scenes));
   }
-
-  function anyInitialMoves(){
-    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
-      const g = floodFill(r,c,grid[r][c]); if(g.length>=2) return true;
+  addScene.addEventListener('click', ()=>{
+    if(sceneInput.value.trim()!==''){
+      scenes.push(sceneInput.value);
+      sceneInput.value='';
+      renderScenes();
     }
-    return false;
-  }
-
-  // initialize default
-  init(SIZE);
-
-  // expose for debugging (optional)
-  window.BlockBlast = { init };
-})();
-</script></body>
+  });
+  renderScenes();
+</script>
+</body>
 </html>
